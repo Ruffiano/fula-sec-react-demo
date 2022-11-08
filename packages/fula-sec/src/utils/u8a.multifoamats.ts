@@ -1,7 +1,5 @@
 import * as u8a from 'uint8arrays'
 import { bases } from 'multiformats/basics'
-import { TextDecoder } from 'util'
-
 /**
  * @deprecated Signers will be expected to return base64url `string` signatures.
  */

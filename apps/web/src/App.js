@@ -18,18 +18,10 @@ import { connectors } from './connectors';
 import { toHex, truncateAddress } from './utils';
 import useWallet from './hooks/useWallet';
 import { HDKEY, DID } from '@functionland/fula-sec';
-import splitKey from 'shamirs-secret-sharing'
 import sha3 from 'js-sha3'
 import * as u8a from 'uint8arrays'
 
-function _splitKey(prime) {
-  let _splitKey = []
-  const shares = splitKey.split(Buffer.from(prime), { shares: 2, threshold: 2 })
-  shares.forEach((element) => {
-      _splitKey.push(element.toString('hex'))
-  });
-  return _splitKey
-}
+
 
 export default function Home() {
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -99,31 +91,20 @@ export default function Home() {
 
   const getKeys = async () => {
     try{
-      let keys = _splitKey(u8a.fromString(secretKey))
-      console.log('Keys: ', keys)
-      
-      const sign = await getSignature(keys?.[0],realAccount)
-      console.log('Signature: ', sign)
+
+      const ed = new HDKEY(secretKey)
+      const chainCode = ed.chainCode;
+      const sign = await getSignature(chainCode?.[0],realAccount)
+      console.log('signature: ', sign)
 
       setSignature(sign)
 
-      let hexSeed = sha3.keccak256(JSON.stringify({
-          secretKey: keys?.[1],
-          signature: sign
-      }));
-      console.log('Seed hex: ', hexSeed)
+      const keyPair = ed.createEDKeyPair(sign);
+      console.log('keyPair: ', keyPair);
 
-      const ed = new HDKEY(hexSeed)
-      console.log('Ed: ',ed);
-
-      const master = ed.createEDKey()
-      console.log('Master: ',master);
-
-      const idid = new DID(ed._secretKey.slice(0, 32), master.publicKey);
-      console.log('iDID: ', idid)
-
-      const did = await idid.getDID();
-      console.log('ParentDID: ', did)
+      const did = new DID(ed.exportEDKeyPair());
+      console.log('did: ', did.did());
+      console.log('pid: ', await did.pid());
 
     }catch(err){
       console.log(err);

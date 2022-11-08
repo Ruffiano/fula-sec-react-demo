@@ -28,15 +28,10 @@
   },
   "include": [
     "src/**/*",
-    "lib/**/*",
     "__tests__/**/*"
   ],
   "exclude": [
     "node_modules",
-    // "lib",
-    "__tests__"
-  ],
-  "typeRoots": [
-    "../../node_modules/@types/index.d.ts"
+    "scripts",
   ]
 }

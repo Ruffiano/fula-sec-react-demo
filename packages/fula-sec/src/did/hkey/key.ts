@@ -2,9 +2,10 @@ import createHmac from 'create-hmac';
 import { extractPublicKeyFromSecretKey, sign } from '@stablelib/ed25519'
 import { replaceDerive, pathRegex } from './utils/utils.js';
 import { stringToBytes,  bytesToBase64url } from '../../utils/u8a.multifoamats.js';
-import * as ucans from './keypair/ed25519.js';
+import * as EdKey from './keyPair/ed25519.js';
 import { Signer } from 'did-jwt';
 import * as u8a from 'uint8arrays';
+import sha3 from 'js-sha3'
 
 type Hex = string;
 type Path = string;
@@ -13,16 +14,35 @@ type Keys = {
     key: Buffer;
     chainCode: Buffer;
 };
-
+type  exportKeyPair = {
+    publicKey: string,
+    secretKey: string
+}
 const ED25519_CURVE = 'ed25519 seed';
 const HARDENED_OFFSET = 0x80000000;
 
 export class HDKEY {
-    private _seed: Hex;
     private _Key!: Keys;
-    _secretKey!: Uint8Array;
-    constructor(seed: Hex) {
-        this._seed = seed;
+    private _secretKey!: Uint8Array;
+    chainCode: string;
+
+    constructor(password: string) {
+        this.chainCode = this._splitKey(password);
+    }
+
+    private _splitKey(password: string) {
+        const hexSeed = sha3.keccak256(password);
+        const hmac = createHmac('sha512', ED25519_CURVE);
+        const secretKey = hmac.update(Buffer.from(hexSeed, 'hex')).digest();
+        const IL = secretKey.slice(0, 32);
+        const IR = secretKey.slice(32);
+        const key = IL;
+        const chainCode = IR;
+        this._Key = {
+            key,
+            chainCode
+        }
+        return u8a.toString(this._Key.chainCode, 'base64pad')
     }
 
     getEd2519Signer(): Signer {
@@ -37,23 +57,21 @@ export class HDKEY {
         }
     }
 
-    createEDKey(seed?: Hex): ucans.EdKeypair {
+    createEDKeyPair(signedKey: Hex): EdKey.EdKeypair {
+        const key = u8a.toString(this._Key.key, 'base64pad')
+        const hexSeed = sha3.keccak256(key.concat(signedKey));
         const hmac = createHmac('sha512', ED25519_CURVE);
-        const secretKey = hmac.update(Buffer.from(seed || this._seed, 'hex')).digest();
-        const IL = secretKey.slice(0, 32);
-        const IR = secretKey.slice(32);
-        const key = IL;
-        const chainCode = IR;
-        this._Key = {
-            key,
-            chainCode
-        }
+        const secretKey = hmac.update(Buffer.from(hexSeed, 'hex')).digest();
         this._secretKey = new Uint8Array(secretKey);
-        return ucans.EdKeypair.fromSecretKey(u8a.toString(this._secretKey, 'base64pad'));
+        return EdKey.EdKeypair.fromSecretKey(u8a.toString(this._secretKey, 'base64pad'));
     };
 
-    getPublicKey(secretKey?: Uint8Array): Uint8Array {
-       return extractPublicKeyFromSecretKey(secretKey || this._secretKey)
+    exportEDKeyPair(secretKey?: Uint8Array): exportKeyPair {
+        const publicKey = extractPublicKeyFromSecretKey(secretKey || this._secretKey)
+        return {
+            publicKey: u8a.toString(publicKey, 'base64pad'),
+            secretKey: u8a.toString(secretKey || this._secretKey, 'base64pad')
+        }
     }
 
     private _extendPrivateKey({ key, chainCode }: Keys, index: number): Keys {
@@ -104,10 +122,20 @@ export class HDKEY {
         );
     };
 
-    deriveKeyPath(path: Path, offset = HARDENED_OFFSET): ucans.EdKeypair {
+    deriveKeyPath(path: Path, offset = HARDENED_OFFSET): EdKey.EdKeypair {
         let { key, chainCode } = this._deriveKeyPath(path, offset);
         const secretKey =  new Uint8Array(Buffer.concat([key, chainCode]));
-        return ucans.EdKeypair.fromSecretKey(u8a.toString(secretKey, 'base64pad'));
+        return EdKey.EdKeypair.fromSecretKey(u8a.toString(secretKey, 'base64pad'));
+    }
+
+    exportKeyPath(path: Path, offset = HARDENED_OFFSET): exportKeyPair {
+        let { key, chainCode } = this._deriveKeyPath(path, offset);
+        const secretKey =  new Uint8Array(Buffer.concat([key, chainCode]));
+        const publicKey = extractPublicKeyFromSecretKey(secretKey)
+        return {
+            publicKey: u8a.toString(publicKey, 'base64pad'),
+            secretKey: u8a.toString(secretKey, 'base64pad')
+        }
     }
 }
 

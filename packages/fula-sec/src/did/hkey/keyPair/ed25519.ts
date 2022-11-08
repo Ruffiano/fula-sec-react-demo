@@ -1,17 +1,18 @@
 import * as ed25519 from "@stablelib/ed25519"
 import * as uint8arrays from "uint8arrays"
-
 import BaseKeypair from "./base.js"
-import { Encodings } from "../types.js"
+import { Encodings } from "./types.js"
 
 
 export class EdKeypair extends BaseKeypair {
 
-  private secretKey: Uint8Array
+  secretKey: Uint8Array;
+  publicKey: Uint8Array;
 
   constructor(secretKey: Uint8Array, publicKey: Uint8Array, exportable: boolean) {
-    super(publicKey, "ed25519", exportable)
-    this.secretKey = secretKey
+    super(publicKey, "ed25519", exportable);
+    this.secretKey = secretKey;
+    this.publicKey = publicKey;
   }
 
   static async create(params?: {
@@ -44,6 +45,5 @@ export class EdKeypair extends BaseKeypair {
   }
 
 }
-
 
 export default EdKeypair

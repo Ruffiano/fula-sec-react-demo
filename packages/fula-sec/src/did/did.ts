@@ -7,8 +7,8 @@ import {prepareCleartext, decodeCleartext } from 'dag-jose-utils'
 import * as u8a from 'uint8arrays'
 import * as crypto from 'libp2p-crypto';
 import * as PeerId from 'peer-id'
-import { InvalidDid } from './utils/errors.js';
-
+import { InvalidDid } from '../did/utils/errors.js';
+import { BASE58_DID_PREFIX, EDWARDS_DID_PREFIX } from "./utils/encode.prefix.js"
 /**
  * @class Decentralized Identity and JWE
  * @description Asymetric Encription
@@ -16,23 +16,26 @@ import { InvalidDid } from './utils/errors.js';
  * share the public key among network participants. 
  */
 
-type CreateJWEOptions = {
+export type CreateJWEOptions = {
     protectedHeader?: Record<string, any>
     aad?: Uint8Array
 }
 
-type DecryptJWEOptions = {
+export type DecryptJWEOptions = {
     did?: string
 }
   
-
+export type keyPair = {
+  publicKey: string,
+  secretKey: string
+}
 export class DID {
     publicKey: Uint8Array;
     private _privateKey: Uint8Array;
     
-    constructor(privateKey: Uint8Array, publicKey: Uint8Array) {
-      this.publicKey = publicKey
-      this._privateKey = privateKey;
+    constructor(_keyPair: keyPair) {
+      this.publicKey = u8a.fromString(_keyPair.publicKey, 'base64pad');
+      this._privateKey = u8a.fromString(_keyPair.secretKey, 'base64pad');
     }
 
     /**
@@ -44,12 +47,19 @@ export class DID {
      * }
     */
 
-    async getDID (parentKey?: Uint8Array): Promise<{
-      PeerId: PeerId.JSONPeerId;
-      did: string;
-    }> {
-      const key = await this._keyPair(parentKey || this._privateKey);
-      return this._generateDID(key);
+    private _didFromKeyBytes(publicKeyBytes: Uint8Array, prefix: Uint8Array): string {
+      const bytes = u8a.concat([prefix, publicKeyBytes])
+      const base58Key = u8a.toString(bytes, "base58btc")
+      return BASE58_DID_PREFIX + base58Key
+    }
+
+    did(): string {
+      return this._didFromKeyBytes(this.publicKey, EDWARDS_DID_PREFIX)
+    }
+
+    async pid (privateKey?: Uint8Array): Promise<PeerId.JSONPeerId> {
+      const key = await this._keyPair(privateKey || this._privateKey);
+      return this._generatePeerId(key);
     }
 
      /**
@@ -59,27 +69,20 @@ export class DID {
      * @returns  Public and PrivateKeys for peerId
      */
  
-    private async _keyPair (parentKey: Uint8Array):Promise<crypto.keys.supportedKeys.ed25519.Ed25519PrivateKey> {
-      return await crypto.keys.generateKeyPairFromSeed('Ed25519', parentKey, 512) 
+    private async _keyPair (privateKey: Uint8Array):Promise<crypto.keys.supportedKeys.ed25519.Ed25519PrivateKey> {
+      return await crypto.keys.generateKeyPairFromSeed('Ed25519', privateKey.slice(0, 32), 512) 
     };
 
     /**
      * This private helper function for generate DID
      * @function _generateDID()
      * @property key: crypto.PrivateKey
-     * @returns  { PeerId: identifier.toJSON(), did }
+     * @returns  { PeerId.JSONPeerId }
      */
 
-    private async _generateDID (key: crypto.PrivateKey): Promise<{
-      PeerId: PeerId.JSONPeerId;
-      did: string;
-    }> {
+    private async _generatePeerId (key: crypto.PrivateKey): Promise<PeerId.JSONPeerId> {
       const identifier = await this._createPeerId(key);
-      const did = `did:fula:${identifier.toB58String()}`;
-      return {
-         PeerId: identifier.toJSON(),
-         did 
-      }
+      return identifier.toJSON()
     };
      
     /**
@@ -183,5 +186,3 @@ export class DID {
       return decodeCleartext(bytes)
     }
 }
-
-export default DID

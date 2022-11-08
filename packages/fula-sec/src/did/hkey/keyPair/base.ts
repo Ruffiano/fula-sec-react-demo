@@ -1,10 +1,7 @@
 import * as uint8arrays from "uint8arrays"
+import { Keypair, KeyType, Encodings, ExportableKey } from "./types.js"
 
-import { publicKeyBytesToDid } from "../did/transformers.js"
-import { Keypair, KeyType, Encodings, Didable, ExportableKey } from "../types.js"
-
-
-export default abstract class BaseKeypair implements Keypair, Didable, ExportableKey {
+export default abstract class BaseKeypair implements Keypair, ExportableKey {
 
   publicKey: Uint8Array
   keyType: KeyType
@@ -18,10 +15,6 @@ export default abstract class BaseKeypair implements Keypair, Didable, Exportabl
 
   publicKeyStr(encoding: Encodings = "base64pad"): string {
     return uint8arrays.toString(this.publicKey, encoding)
-  }
-
-  did(): string {
-    return publicKeyBytesToDid(this.publicKey, this.keyType)
   }
 
   abstract sign(msg: Uint8Array): Promise<Uint8Array>
