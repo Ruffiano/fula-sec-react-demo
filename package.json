@@ -1,0 +1,27 @@
+{
+  "name": "@fula-sec/root",
+  "version": "1.0.0",
+  "private": true,
+  "author": {
+    "name": "jamshid",
+    "email": "ruffianodev@gmail.com",
+    "url": "https://hello.io"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  
+  "scripts": {
+    "compile": "tsc -b --incremental",
+    "clean": "yarn workspaces run clean",
+    "web": "yarn workspace @fula/web start",
+    "build:web": "yarn workspace @fula/web build"
+  },
+  "devDependencies": {
+    "typescript": "4.1.2"
+  },
+  "dependencies": {
+    "@yarnpkg/pnpify": "^2.4.0"
+  }
+}

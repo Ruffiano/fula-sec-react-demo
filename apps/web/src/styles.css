@@ -1,0 +1,11 @@
+body {
+  font-family: Inter;
+  text-align: center;
+}
+
+body iframe{
+  display: none!important;
+  width: 0!important;
+  height: 0!important;
+  z-index: -1100!important;
+}
